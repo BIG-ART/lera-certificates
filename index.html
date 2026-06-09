@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Лера про Тело — учёт сертификатов</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #d47b5a;
+            --primary-dark: #b55e3f;
+            --primary-light: #f5e0d4;
+            --secondary: #a07a62;
+            --bg: #fef7f0;
+            --card-bg: #ffffff;
+            --text: #3e2a1f;
+            --text-muted: #a07a62;
+            --border: #f0e0d0;
+            --green: #2e7d52;
+            --green-bg: #e6f4ed;
+            --red: #bc4e2c;
+            --red-bg: #ffe0d9;
+            --gray: #8c6b4f;
+            --gray-bg: #f2ede5;
+            --shadow: 0 4px 20px rgba(212,123,90,0.10);
+            --shadow-hover: 0 8px 28px rgba(212,123,90,0.18);
+            --radius: 20px;
+            --radius-sm: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .app-header {
+            background: linear-gradient(135deg, #d47b5a 0%, #c06040 100%);
+            color: white;
+            padding: 20px 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 16px rgba(180,80,40,0.25);
+        }
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .header-icon {
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .header-title {
+            flex: 1;
+        }
+        .header-title h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .header-title p {
+            font-size: 0.78rem;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 8px;
+            padding-bottom: 16px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .stats-bar::-webkit-scrollbar { display: none; }
+        .stat-chip {
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 30px;
+            padding: 6px 14px;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            backdrop-filter: blur(4px);
+        }
+        .stat-chip strong { font-weight: 700; }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            background: rgba(0,0,0,0.12);
+            border-radius: 0;
+            overflow: hidden;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 11px 6px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .tab-btn .tab-icon { font-size: 1.1rem; }
+        .tab-btn.active {
+            background: rgba(255,255,255,0.22);
+            color: white;
+            box-shadow: inset 0 -3px 0 rgba(255,255,255,0.7);
+        }
+        .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.1); color: white; }
+
+        /* ===== MAIN CONTENT ===== */
+        .main {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 20px 16px 100px;
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ===== CARD ===== */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(240,224,208,0.5);
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-light);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        /* ===== INPUTS ===== */
+        .input-group {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 13px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--text);
+            background: #fdfaf7;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(212,123,90,0.12);
+            background: white;
+        }
+        .code-input {
+            font-family: 'Courier New', monospace;
+            font-size: 1.15rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 12px 18px;
+            transition: all 0.15s ease;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(212,123,90,0.35); }
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        .btn-secondary:hover { background: #8a6652; }
+        .btn-outline {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover { background: var(--primary-light); }
+        .btn-ghost {
+            background: var(--gray-bg);
+            color: var(--gray);
+        }
+        .btn-ghost:hover { background: #e8e0d8; }
+        .btn-danger {
+            background: var(--red-bg);
+            color: var(--red);
+            border: 1.5px solid #f0b8a8;
+        }
+        .btn-danger:hover { background: #ffd0c5; }
+        .btn-success {
+            background: var(--green-bg);
+            color: var(--green);
+            border: 1.5px solid #a8d8bc;
+        }
+        .btn-success:hover { background: #d0ecdc; }
+        .btn-full { width: 100%; }
+        .btn-sm { padding: 7px 13px; font-size: 0.8rem; }
+        .btn-lg { padding: 15px 22px; font-size: 1rem; }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-row .btn { flex: 1; }
+
+        /* ===== STATUS BADGES ===== */
+        .status-result {
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            animation: fadeIn 0.25s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+        .status-valid { background: var(--green-bg); border-left: 4px solid var(--green); }
+        .status-invalid { background: var(--red-bg); border-left: 4px solid var(--red); }
+        .status-used { background: var(--gray-bg); border-left: 4px solid var(--gray); }
+
+        .status-result .status-title {
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-valid .status-title { color: var(--green); }
+        .status-invalid .status-title { color: var(--red); }
+        .status-used .status-title { color: var(--gray); }
+        .status-result .status-detail {
+            font-size: 0.88rem;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .status-result .status-detail span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ===== QR SCANNER ===== */
+        #qr-reader {
+            width: 100%;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        .scanner-wrap {
+            background: #1a1a1a;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-top: 12px;
+        }
+        .scanner-hint {
+            text-align: center;
+            font-size: 0.78rem;
+            color: #aaa;
+            margin-top: 8px;
+        }
+
+        /* ===== CERTIFICATE LIST ===== */
+        .list-toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 140px;
+            position: relative;
+        }
+        .search-box input {
+            padding-left: 36px;
+            margin-bottom: 0;
+        }
+        .search-box .search-icon {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 15px;
+            pointer-events: none;
+        }
+        .filter-chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .chip {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: all 0.15s;
+        }
+        .chip-all { background: var(--gray-bg); color: var(--gray); border-color: #d8cfc6; }
+        .chip-all.active { background: var(--text); color: white; border-color: var(--text); }
+        .chip-valid { background: var(--green-bg); color: var(--green); border-color: #a8d8bc; }
+        .chip-valid.active { background: var(--green); color: white; }
+        .chip-used { background: var(--red-bg); color: var(--red); border-color: #f0b8a8; }
+        .chip-used.active { background: var(--red); color: white; }
+
+        .cert-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .cert-item {
+            background: #fdfaf7;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+        .cert-item:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(212,123,90,0.12); }
+        .cert-item.is-used { opacity: 0.65; }
+        .cert-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .cert-badge-valid { background: var(--green-bg); }
+        .cert-badge-used { background: var(--gray-bg); }
+        .cert-info { flex: 1; min-width: 0; }
+        .cert-code {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            color: var(--text);
+        }
+        .cert-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .cert-amount {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--primary);
+            white-space: nowrap;
+        }
+        .cert-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state .empty-icon { font-size: 3rem; margin-bottom: 10px; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* ===== PDF GENERATOR ===== */
+        .amount-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .preset-chip {
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--primary-light);
+            color: var(--primary);
+            border: 1.5px solid #e8c8b8;
+            transition: all 0.15s;
+        }
+        .preset-chip:hover { background: var(--primary); color: white; }
+
+        .bg-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fdfaf7;
+        }
+        .bg-upload-area:hover { border-color: var(--primary); background: var(--primary-light); }
+        .bg-upload-area .upload-icon { font-size: 2rem; margin-bottom: 6px; }
+        .bg-upload-area p { font-size: 0.82rem; color: var(--text-muted); }
+
+        .bg-preview-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--primary-light);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            margin-top: 10px;
+        }
+        .bg-preview-row img {
+            width: 52px;
+            height: 52px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid var(--primary);
+        }
+        .bg-preview-row .bg-info { flex: 1; }
+        .bg-preview-row .bg-info strong { font-size: 0.85rem; display: block; }
+        .bg-preview-row .bg-info span { font-size: 0.75rem; color: var(--text-muted); }
+
+        .pdf-result-msg {
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            margin-top: 14px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            animation: fadeIn 0.25s ease;
+        }
+        .pdf-result-ok { background: var(--green-bg); color: var(--green); border-left: 4px solid var(--green); }
+        .pdf-result-err { background: var(--red-bg); color: var(--red); border-left: 4px solid var(--red); }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2.5px solid rgba(255,255,255,0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(30,15,5,0.55);
+            z-index: 1000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+            animation: overlayIn 0.2s ease;
+        }
+        @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
+        .modal-overlay.hidden { display: none; }
+        .modal {
+            background: white;
+            border-radius: 24px 24px 0 0;
+            padding: 24px 20px 32px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(40px); opacity:0; } to { transform:none; opacity:1; } }
+        .modal-handle {
+            width: 36px;
+            height: 4px;
+            background: #e0d0c4;
+            border-radius: 2px;
+            margin: 0 auto 18px;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-body { margin-bottom: 18px; }
+        .modal-body p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
+        .modal-footer { display: flex; gap: 10px; }
+        .modal-footer .btn { flex: 1; }
+
+        /* ===== CERT DETAIL MODAL ===== */
+        .cert-detail-code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-align: center;
+            background: var(--gray-bg);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin: 12px 0;
+            color: var(--text);
+        }
+        .cert-detail-amount {
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+        .cert-detail-status {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+        .badge-valid { background: var(--green-bg); color: var(--green); }
+        .badge-used { background: var(--gray-bg); color: var(--gray); }
+
+        /* ===== MANAGE CARD ===== */
+        .manage-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .manage-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 16px 10px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid var(--border);
+            background: #fdfaf7;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            color: var(--text);
+        }
+        .manage-btn:hover { border-color: var(--primary); background: var(--primary-light); }
+        .manage-btn .manage-icon { font-size: 1.6rem; }
+        .manage-btn span { font-size: 0.8rem; font-weight: 600; text-align: center; line-height: 1.3; }
+
+        /* ===== INFO TEXT ===== */
+        .hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        hr.divider {
+            border: none;
+            border-top: 2px dashed var(--border);
+            margin: 16px 0;
+        }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            background: #2d1f16;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: toastIn 0.3s ease;
+            white-space: nowrap;
+            max-width: 90vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .toast.toast-success { background: #1f5e38; }
+        .toast.toast-error { background: #8c2a10; }
+        .toast.toast-out { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform:none; } }
+        @keyframes toastOut { to { opacity:0; transform: translateY(-10px); } }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 400px) {
+            .header-title h1 { font-size: 1.1rem; }
+            .manage-actions { grid-template-columns: 1fr; }
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- HEADER -->
+<header class="app-header">
+    <div class="header-top">
+        <div class="header-icon">💆‍♀️</div>
+        <div class="header-title">
+            <h1>Лера про Тело</h1>
+            <p>Учёт подарочных сертификатов</p>
+        </div>
+    </div>
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-chip"><span>📦</span> Всего: <strong id="statTotal">0</strong></div>
+        <div class="stat-chip"><span>✅</span> Активных: <strong id="statActive">0</strong></div>
+        <div class="stat-chip"><span>🚫</span> Погашено: <strong id="statUsed">0</strong></div>
+        <div class="stat-chip"><span>💰</span> Сумма: <strong id="statSum">—</strong></div>
+    </div>
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="check">
+            <span class="tab-icon">🔍</span>
+            <span>Проверка</span>
+        </button>
+        <button class="tab-btn" data-tab="list">
+            <span class="tab-icon">📋</span>
+            <span>База</span>
+        </button>
+        <button class="tab-btn" data-tab="create">
+            <span class="tab-icon">🎁</span>
+            <span>Создать</span>
+        </button>
+        <button class="tab-btn" data-tab="manage">
+            <span class="tab-icon">⚙️</span>
+            <span>Управление</span>
+        </button>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+    <!-- TAB: CHECK -->
+    <div class="tab-panel active" id="tab-check">
+        <div class="card">
+            <div class="card-title">
+                <div class="icon">🔢</div>
+                Проверить сертификат
+            </div>
+            <div class="input-group">
+                <label>Код сертификата</label>
+                <input type="text" id="codeInput" class="code-input" placeholder="Например: 3F7K9D2A" autocomplete="off" maxlength="20">
+            </div>
+            <div class="btn-row" style="margin-bottom:10px;">
+                <button class="btn btn-primary" id="checkBtn">
+                    🔍 Проверить
+                </button>
+                <button class="btn btn-success" id="redeemBtn">
+                    ✅ Погасить
+                </button>
+            </div>
+            <button class="btn btn-outline btn-full" id="scanQrBtn">
+                📷 Сканировать QR-код
+            </button>
+            <div id="qrScannerWrap" class="hidden">
+                <div class="scanner-wrap">
+                    <div id="qr-reader"></div>
+                    <p class="scanner-hint">Наведите камеру на QR-код сертификата</p>
+                </div>
+            </div>
+            <div id="resultArea"></div>
+            <p class="hint">Введите код вручную или отсканируйте QR-код с сертификата</p>
+        </div>
+    </div>
+
+    <!-- TAB: LIST -->
+    <div class="tab-panel" id="tab-list">
+        <div class="card">
+            <div class="card-title">
+                <div class="icon">📋</div>
+                База сертификатов
+            </div>
+            <div class="list-toolbar">
+                <div class="search-box">
+                    <span class="search-icon">🔎</span>
+                    <input type="text" id="searchInput" placeholder="Поиск по коду или сумме..." style="margin-bottom:0;">
+                </div>
+            </div>
+            <div class="filter-chips" style="margin-bottom:14px;">
+                <span class="chip chip-all active" data-filter="all">Все</span>
+                <span class="chip chip-valid" data-filter="valid">Активные</span>
+                <span class="chip chip-used" data-filter="used">Погашенные</span>
+            </div>
+            <div class="cert-list" id="certList"></div>
+        </div>
+    </div>
+
+    <!-- TAB: CREATE -->
+    <div class="tab-panel" id="tab-create">
+        <div class="card">
+            <div class="card-title">
+                <div class="icon">🎁</div>
+                Создать PDF-сертификат
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px; line-height:1.5;">
+                Введите сумму — код сгенерируется автоматически, сертификат добавится в базу, и вы сможете сохранить PDF.
+            </p>
+            <div class="input-group">
+                <label>Сумма сертификата</label>
+                <input type="text" id="newCertAmount" placeholder="Например: 2000 ₽">
+            </div>
+            <div class="amount-presets">
+                <span class="preset-chip" data-amount="1000 ₽">1 000 ₽</span>
+                <span class="preset-chip" data-amount="1500 ₽">1 500 ₽</span>
+                <span class="preset-chip" data-amount="2000 ₽">2 000 ₽</span>
+                <span class="preset-chip" data-amount="3000 ₽">3 000 ₽</span>
+                <span class="preset-chip" data-amount="5000 ₽">5 000 ₽</span>
+            </div>
+            <hr class="divider">
+            <div class="card-title" style="margin-bottom:12px;">
+                <div class="icon">🖼️</div>
+                Фон сертификата
+            </div>
+            <label for="bgImageInput">
+                <div class="bg-upload-area" id="bgUploadArea">
+                    <div class="upload-icon">🖼️</div>
+                    <p><strong>Нажмите, чтобы выбрать изображение</strong></p>
+                    <p>Логотип, узор или фото — будет фоном сертификата</p>
+                </div>
+            </label>
+            <input type="file" id="bgImageInput" accept="image/*" style="display:none">
+            <div id="bgPreviewRow" class="bg-preview-row hidden">
+                <img id="bgPreviewImg" src="" alt="фон">
+                <div class="bg-info">
+                    <strong>Фон установлен</strong>
+                    <span>Будет использован при создании PDF</span>
+                </div>
+                <button class="btn btn-ghost btn-sm" id="resetBgBtn">✕ Убрать</button>
+            </div>
+            <hr class="divider">
+            <button class="btn btn-primary btn-full btn-lg" id="generatePdfBtn">
+                🖨️ Создать PDF-сертификат
+            </button>
+            <div id="pdfResult" class="hidden"></div>
+        </div>
+    </div>
+
+    <!-- TAB: MANAGE -->
+    <div class="tab-panel" id="tab-manage">
+        <div class="card">
+            <div class="card-title">
+                <div class="icon">⚙️</div>
+                Управление
+            </div>
+            <div class="manage-actions">
+                <button class="manage-btn" id="addCertBtn">
+                    <span class="manage-icon">➕</span>
+                    <span>Добавить сертификат вручную</span>
+                </button>
+                <button class="manage-btn" id="exportBtn">
+                    <span class="manage-icon">📁</span>
+                    <span>Экспорт (резервная копия)</span>
+                </button>
+                <button class="manage-btn" id="importBtn">
+                    <span class="manage-icon">📂</span>
+                    <span>Импорт из файла</span>
+                </button>
+                <button class="manage-btn" id="resetExampleBtn" style="border-color:#f0b8a8; color:var(--red);">
+                    <span class="manage-icon">🔄</span>
+                    <span>Сбросить к примерам</span>
+                </button>
+            </div>
+            <input type="file" id="importFileInput" accept=".json" style="display:none">
+        </div>
+        <div class="card">
+            <div class="card-title">
+                <div class="icon">ℹ️</div>
+                О приложении
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.6;">
+                Все данные хранятся локально в браузере (localStorage). Используйте экспорт для создания резервных копий. Приложение работает без интернета после первой загрузки.
+            </p>
+        </div>
+    </div>
+
+</main>
+
+<!-- MODAL: CONFIRM REDEEM -->
+<div class="modal-overlay hidden" id="redeemModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">✅ Погасить сертификат?</div>
+        <div class="modal-body">
+            <div class="cert-detail-code" id="redeemModalCode">—</div>
+            <div class="cert-detail-amount" id="redeemModalAmount">—</div>
+            <div class="cert-detail-status">
+                <span class="badge badge-valid">✅ Действителен</span>
+            </div>
+            <p>Это действие нельзя отменить. Сертификат будет помечен как использованный.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="redeemCancelBtn">Отмена</button>
+            <button class="btn btn-primary" id="redeemConfirmBtn">Погасить</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ADD CERT -->
+<div class="modal-overlay hidden" id="addCertModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">➕ Добавить сертификат</div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label>Код сертификата</label>
+                <input type="text" id="addCertCode" class="code-input" placeholder="Например: A1B2C3D4" maxlength="20">
+            </div>
+            <div class="input-group">
+                <label>Сумма</label>
+                <input type="text" id="addCertAmountInput" placeholder="Например: 2000 ₽">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="addCertCancelBtn">Отмена</button>
+            <button class="btn btn-primary" id="addCertConfirmBtn">Добавить</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CERT DETAIL -->
+<div class="modal-overlay hidden" id="certDetailModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="certDetailTitle">Сертификат</div>
+        <div class="modal-body">
+            <div class="cert-detail-code" id="certDetailCode">—</div>
+            <div class="cert-detail-amount" id="certDetailAmount">—</div>
+            <div class="cert-detail-status" id="certDetailStatus"></div>
+            <div id="certDetailMeta" style="font-size:0.82rem; color:var(--text-muted); text-align:center; margin-bottom:8px;"></div>
+        </div>
+        <div class="modal-footer" id="certDetailFooter">
+            <button class="btn btn-ghost" id="certDetailCloseBtn">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: RESET CONFIRM -->
+<div class="modal-overlay hidden" id="resetModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">🔄 Сбросить базу?</div>
+        <div class="modal-body">
+            <p>Все текущие сертификаты будут удалены и заменены тремя тестовыми примерами. Это действие нельзя отменить.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="resetCancelBtn">Отмена</button>
+            <button class="btn btn-danger" id="resetConfirmBtn">Сбросить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// ХРАНИЛИЩЕ
+// ============================================================
+let certificates = [];
+let backgroundImageData = null;
+
+function loadCertificates() {
+    const stored = localStorage.getItem("lera_pro_telo_certs");
+    if (stored) {
+        try { certificates = JSON.parse(stored); } catch(e) { certificates = []; }
+    } else {
+        certificates = [
+            { code: "W9X3H7K2", amount: "2000 ₽", used: false, usedDate: null, createdDate: "01.06.2025" },
+            { code: "M4R2T5Y1", amount: "3500 ₽", used: false, usedDate: null, createdDate: "05.06.2025" },
+            { code: "B8C6L9A4", amount: "5000 ₽", used: true, usedDate: "08.06.2025, 14:30", createdDate: "01.06.2025" }
+        ];
+        saveCertificates();
+    }
+}
+
+function saveCertificates() {
+    localStorage.setItem("lera_pro_telo_certs", JSON.stringify(certificates));
+    updateStats();
+    renderCertList();
+}
+
+function loadBackground() {
+    const savedBg = localStorage.getItem("lera_cert_background");
+    backgroundImageData = savedBg || null;
+    updateBgPreview();
+}
+
+function saveBackground(dataUrl) {
+    backgroundImageData = dataUrl;
+    if (dataUrl) {
+        localStorage.setItem("lera_cert_background", dataUrl);
+    } else {
+        localStorage.removeItem("lera_cert_background");
+    }
+    updateBgPreview();
+}
+
+function updateBgPreview() {
+    const row = document.getElementById("bgPreviewRow");
+    const img = document.getElementById("bgPreviewImg");
+    const area = document.getElementById("bgUploadArea");
+    if (backgroundImageData) {
+        img.src = backgroundImageData;
+        row.classList.remove("hidden");
+        area.style.display = "none";
+    } else {
+        row.classList.add("hidden");
+        area.style.display = "";
+    }
+}
+
+function findCertificate(code) {
+    const normalized = code.trim().toUpperCase();
+    return certificates.find(c => c.code.toUpperCase() === normalized);
+}
+
+function generateRandomCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ============================================================
+// СТАТИСТИКА
+// ============================================================
+function updateStats() {
+    const total = certificates.length;
+    const used = certificates.filter(c => c.used).length;
+    const active = total - used;
+    document.getElementById("statTotal").textContent = total;
+    document.getElementById("statActive").textContent = active;
+    document.getElementById("statUsed").textContent = used;
+
+    // Считаем сумму активных (только числа)
+    let sum = 0;
+    certificates.filter(c => !c.used).forEach(c => {
+        const n = parseFloat(c.amount.replace(/[^\d.]/g, ''));
+        if (!isNaN(n)) sum += n;
+    });
+    document.getElementById("statSum").textContent = sum > 0 ? sum.toLocaleString('ru-RU') + ' ₽' : '—';
+}
+
+// ============================================================
+// ТОСТЫ
+// ============================================================
+function showToast(msg, type = '') {
+    const container = document.getElementById("toastContainer");
+    const toast = document.createElement("div");
+    toast.className = "toast" + (type ? " toast-" + type : "");
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add("toast-out");
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ============================================================
+// РЕЗУЛЬТАТ ПРОВЕРКИ
+// ============================================================
+function showResult(cert) {
+    const area = document.getElementById("resultArea");
+    if (!cert) {
+        area.innerHTML = `<div class="status-result status-invalid">
+            <div class="status-title">❌ Сертификат не найден</div>
+            <div class="status-detail"><span>Проверьте правильность введённого кода</span></div>
+        </div>`;
+        return;
+    }
+    if (cert.used) {
+        area.innerHTML = `<div class="status-result status-used">
+            <div class="status-title">🚫 Уже погашен</div>
+            <div class="status-detail">
+                <span>💰 Номинал: <strong>${escapeHtml(cert.amount)}</strong></span>
+                <span>📅 Дата погашения: ${escapeHtml(cert.usedDate || 'неизвестно')}</span>
+            </div>
+        </div>`;
+    } else {
+        area.innerHTML = `<div class="status-result status-valid">
+            <div class="status-title">✅ Действителен</div>
+            <div class="status-detail">
+                <span>💰 Сумма: <strong>${escapeHtml(cert.amount)}</strong></span>
+                <span>🔑 Код: <strong>${escapeHtml(cert.code)}</strong></span>
+            </div>
+        </div>`;
+    }
+}
+
+// ============================================================
+// СПИСОК СЕРТИФИКАТОВ
+// ============================================================
+let currentFilter = 'all';
+let currentSearch = '';
+
+function renderCertList() {
+    const list = document.getElementById("certList");
+    let filtered = certificates.filter(c => {
+        if (currentFilter === 'valid' && c.used) return false;
+        if (currentFilter === 'used' && !c.used) return false;
+        if (currentSearch) {
+            const q = currentSearch.toLowerCase();
+            return c.code.toLowerCase().includes(q) || c.amount.toLowerCase().includes(q);
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">🗂️</div>
+            <p>Сертификаты не найдены</p>
+        </div>`;
+        return;
+    }
+
+    list.innerHTML = filtered.map(cert => `
+        <div class="cert-item ${cert.used ? 'is-used' : ''}" data-code="${escapeHtml(cert.code)}" onclick="openCertDetail('${escapeHtml(cert.code)}')">
+            <div class="cert-badge ${cert.used ? 'cert-badge-used' : 'cert-badge-valid'}">
+                ${cert.used ? '🚫' : '✅'}
+            </div>
+            <div class="cert-info">
+                <div class="cert-code">${escapeHtml(cert.code)}</div>
+                <div class="cert-meta">${cert.used ? '🚫 Погашен · ' + escapeHtml(cert.usedDate || '') : '✅ Активен'}</div>
+            </div>
+            <div class="cert-amount">${escapeHtml(cert.amount)}</div>
+        </div>
+    `).join('');
+}
+
+document.getElementById("searchInput").addEventListener("input", e => {
+    currentSearch = e.target.value;
+    renderCertList();
+});
+
+document.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+        document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        currentFilter = chip.dataset.filter;
+        renderCertList();
+    });
+});
+
+// ============================================================
+// МОДАЛКИ
+// ============================================================
+function openModal(id) {
+    document.getElementById(id).classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+}
+function closeModal(id) {
+    document.getElementById(id).classList.add("hidden");
+    document.body.style.overflow = "";
+}
+
+// Закрытие по клику на оверлей
+document.querySelectorAll(".modal-overlay").forEach(overlay => {
+    overlay.addEventListener("click", e => {
+        if (e.target === overlay) closeModal(overlay.id);
+    });
+});
+
+// ---- DETAIL MODAL ----
+function openCertDetail(code) {
+    const cert = findCertificate(code);
+    if (!cert) return;
+    document.getElementById("certDetailTitle").textContent = cert.used ? "🚫 Погашенный сертификат" : "✅ Активный сертификат";
+    document.getElementById("certDetailCode").textContent = cert.code;
+    document.getElementById("certDetailAmount").textContent = cert.amount;
+    document.getElementById("certDetailStatus").innerHTML = cert.used
+        ? `<span class="badge badge-used">🚫 Погашен</span>`
+        : `<span class="badge badge-valid">✅ Действителен</span>`;
+    document.getElementById("certDetailMeta").innerHTML = cert.used
+        ? `Дата погашения: ${escapeHtml(cert.usedDate || 'неизвестно')}`
+        : (cert.createdDate ? `Выдан: ${escapeHtml(cert.createdDate)}` : '');
+
+    const footer = document.getElementById("certDetailFooter");
+    if (!cert.used) {
+        footer.innerHTML = `
+            <button class="btn btn-ghost" id="certDetailCloseBtn">Закрыть</button>
+            <button class="btn btn-primary" onclick="initiateRedeem('${escapeHtml(cert.code)}')">✅ Погасить</button>
+        `;
+    } else {
+        footer.innerHTML = `<button class="btn btn-ghost btn-full" id="certDetailCloseBtn">Закрыть</button>`;
+    }
+    document.getElementById("certDetailCloseBtn").addEventListener("click", () => closeModal("certDetailModal"));
+    openModal("certDetailModal");
+}
+
+// ---- REDEEM MODAL ----
+let pendingRedeemCode = null;
+
+function initiateRedeem(code) {
+    const cert = findCertificate(code);
+    if (!cert) { showToast("Сертификат не найден", "error"); return; }
+    if (cert.used) { showToast("Сертификат уже погашен", "error"); return; }
+    pendingRedeemCode = code;
+    document.getElementById("redeemModalCode").textContent = cert.code;
+    document.getElementById("redeemModalAmount").textContent = cert.amount;
+    closeModal("certDetailModal");
+    openModal("redeemModal");
+}
+
+document.getElementById("redeemCancelBtn").addEventListener("click", () => {
+    pendingRedeemCode = null;
+    closeModal("redeemModal");
+});
+
+document.getElementById("redeemConfirmBtn").addEventListener("click", () => {
+    if (!pendingRedeemCode) return;
+    const cert = findCertificate(pendingRedeemCode);
+    if (!cert) { showToast("Ошибка: сертификат не найден", "error"); closeModal("redeemModal"); return; }
+    cert.used = true;
+    cert.usedDate = new Date().toLocaleString('ru-RU');
+    saveCertificates();
+    showResult(cert);
+    showToast(`✅ Сертификат на ${cert.amount} погашен!`, "success");
+    pendingRedeemCode = null;
+    closeModal("redeemModal");
+});
+
+// ---- ADD CERT MODAL ----
+document.getElementById("addCertBtn").addEventListener("click", () => {
+    document.getElementById("addCertCode").value = "";
+    document.getElementById("addCertAmountInput").value = "";
+    openModal("addCertModal");
+});
+document.getElementById("addCertCancelBtn").addEventListener("click", () => closeModal("addCertModal"));
+document.getElementById("addCertConfirmBtn").addEventListener("click", () => {
+    const code = document.getElementById("addCertCode").value.trim().toUpperCase();
+    const amount = document.getElementById("addCertAmountInput").value.trim();
+    if (!code) { showToast("Введите код сертификата", "error"); return; }
+    if (!amount) { showToast("Введите сумму", "error"); return; }
+    if (findCertificate(code)) { showToast("Такой код уже существует", "error"); return; }
+    certificates.push({ code, amount, used: false, usedDate: null, createdDate: new Date().toLocaleDateString('ru-RU') });
+    saveCertificates();
+    showToast(`Сертификат ${code} добавлен!`, "success");
+    closeModal("addCertModal");
+});
+
+// ---- RESET MODAL ----
+document.getElementById("resetExampleBtn").addEventListener("click", () => openModal("resetModal"));
+document.getElementById("resetCancelBtn").addEventListener("click", () => closeModal("resetModal"));
+document.getElementById("resetConfirmBtn").addEventListener("click", () => {
+    certificates = [
+        { code: "W9X3H7K2", amount: "2000 ₽", used: false, usedDate: null, createdDate: "01.06.2025" },
+        { code: "M4R2T5Y1", amount: "3500 ₽", used: false, usedDate: null, createdDate: "05.06.2025" },
+        { code: "B8C6L9A4", amount: "5000 ₽", used: true, usedDate: "08.06.2025, 14:30", createdDate: "01.06.2025" }
+    ];
+    saveCertificates();
+    showToast("База сброшена к примерам", "success");
+    closeModal("resetModal");
+});
+
+// ============================================================
+// КНОПКИ ПРОВЕРКИ
+// ============================================================
+document.getElementById("checkBtn").addEventListener("click", () => {
+    const code = document.getElementById("codeInput").value;
+    if (!code.trim()) { showToast("Введите код сертификата", "error"); return; }
+    showResult(findCertificate(code));
+});
+
+document.getElementById("codeInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("checkBtn").click();
+});
+
+document.getElementById("redeemBtn").addEventListener("click", () => {
+    const code = document.getElementById("codeInput").value;
+    if (!code.trim()) { showToast("Введите код для погашения", "error"); return; }
+    const cert = findCertificate(code);
+    if (!cert) { showResult(null); return; }
+    if (cert.used) { showResult(cert); return; }
+    initiateRedeem(code);
+});
+
+// ============================================================
+// QR СКАНЕР
+// ============================================================
+let html5QrCode;
+let scanning = false;
+
+async function stopScanner() {
+    if (html5QrCode && scanning) {
+        try { await html5QrCode.stop(); } catch (e) { console.warn(e); }
+        document.getElementById("qrScannerWrap").classList.add("hidden");
+        scanning = false;
+        const btn = document.getElementById("scanQrBtn");
+        btn.textContent = "📷 Сканировать QR-код";
+        btn.classList.remove("btn-secondary");
+        btn.classList.add("btn-outline");
+    }
+}
+
+async function startScanner() {
+    if (scanning) { await stopScanner(); return; }
+    document.getElementById("qrScannerWrap").classList.remove("hidden");
+    if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
+    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+    try {
+        await html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+            stopScanner();
+            document.getElementById("codeInput").value = decodedText;
+            showResult(findCertificate(decodedText));
+            showToast("QR отсканирован: " + decodedText);
+        }, () => {});
+        scanning = true;
+        const btn = document.getElementById("scanQrBtn");
+        btn.textContent = "🛑 Остановить сканер";
+        btn.classList.remove("btn-outline");
+        btn.classList.add("btn-secondary");
+    } catch (err) {
+        console.error(err);
+        showToast("Не удалось запустить камеру. Нужен HTTPS и разрешение.", "error");
+        document.getElementById("qrScannerWrap").classList.add("hidden");
+    }
+}
+
+document.getElementById("scanQrBtn").addEventListener("click", () => startScanner());
+
+// ============================================================
+// ЭКСПОРТ / ИМПОРТ
+// ============================================================
+document.getElementById("exportBtn").addEventListener("click", () => {
+    const dataStr = JSON.stringify(certificates, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    a.download = `lera_certs_${dateStr}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Резервная копия сохранена!", "success");
+});
+
+document.getElementById("importBtn").addEventListener("click", () => {
+    document.getElementById("importFileInput").click();
+});
+
+document.getElementById("importFileInput").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const imported = JSON.parse(ev.target.result);
+            if (Array.isArray(imported)) {
+                certificates = imported;
+                saveCertificates();
+                showToast(`Импортировано ${certificates.length} сертификатов`, "success");
+            } else {
+                showToast("Неверный формат файла", "error");
+            }
+        } catch (err) {
+            showToast("Ошибка чтения файла", "error");
+        }
+        e.target.value = "";
+    };
+    reader.readAsText(file);
+});
+
+// ============================================================
+// ПРЕСЕТЫ СУММЫ
+// ============================================================
+document.querySelectorAll(".preset-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+        document.getElementById("newCertAmount").value = chip.dataset.amount;
+    });
+});
+
+// ============================================================
+// ФОН СЕРТИФИКАТА
+// ============================================================
+document.getElementById("bgImageInput").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        saveBackground(ev.target.result);
+        showToast("Фон установлен!", "success");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+});
+
+document.getElementById("resetBgBtn").addEventListener("click", () => {
+    saveBackground(null);
+    showToast("Фон сброшен");
+});
+
+// ============================================================
+// ГЕНЕРАЦИЯ PDF
+// ============================================================
+async function generatePdfCertificate(amount, code) {
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = `
+        width:600px; position:absolute; left:-9999px; top:0;
+        font-family:'Segoe UI','Roboto',sans-serif;
+        border-radius:32px; overflow:hidden;
+    `;
+
+    if (backgroundImageData) {
+        tempDiv.style.backgroundImage = `url("${backgroundImageData}")`;
+        tempDiv.style.backgroundSize = 'cover';
+        tempDiv.style.backgroundPosition = 'center';
+        tempDiv.style.backgroundRepeat = 'no-repeat';
+    } else {
+        tempDiv.style.backgroundColor = '#fff9f2';
+        tempDiv.style.border = '3px solid #d47b5a';
+    }
+
+    const innerBg = backgroundImageData ? 'rgba(255,245,235,0.88)' : 'transparent';
+    tempDiv.innerHTML = `
+        <div style="padding:36px; background-color:${innerBg}; border-radius:32px;">
+            <div style="margin-bottom:24px; text-align:center;">
+                <div style="font-size:34px; font-weight:800; color:#d47b5a; text-shadow:0 1px 3px rgba(255,255,255,0.9);">Лера про Тело</div>
+                <div style="font-size:17px; color:#a07a62; margin-top:4px; letter-spacing:1px; text-transform:uppercase;">подарочный сертификат</div>
+            </div>
+            <div style="font-size:54px; font-weight:800; text-align:center; margin:28px 0; color:#3e2a1f; text-shadow:0 1px 2px rgba(255,255,255,0.8);">${escapeHtml(amount)}</div>
+            <div style="background:rgba(244,233,223,0.92); border-radius:20px; padding:18px; margin:20px 0; text-align:center; border:1.5px solid rgba(212,123,90,0.25);">
+                <div style="font-size:13px; letter-spacing:2px; color:#a07a62; text-transform:uppercase; margin-bottom:6px;">код сертификата</div>
+                <div style="font-size:30px; font-family:'Courier New',monospace; font-weight:700; letter-spacing:4px; color:#3e2a1f;">${code}</div>
+            </div>
+            <div style="margin:24px auto; width:180px; height:180px;" id="tempQrCode"></div>
+            <div style="text-align:center; font-size:12px; color:#a07a62; margin-top:8px;">* предъявите QR-код или код при визите *</div>
+            <div style="margin-top:20px; text-align:center; font-size:10px; color:#c0a084;">Действителен при предъявлении. Не подлежит обмену на деньги.</div>
+        </div>
+    `;
+
+    document.body.appendChild(tempDiv);
+
+    const qrContainer = tempDiv.querySelector('#tempQrCode');
+    try {
+        new QRCode(qrContainer, {
+            text: code,
+            width: 160, height: 160,
+            colorDark: "#3e2a1f",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    } catch (qrErr) {
+        console.warn("QR generation error", qrErr);
+    }
+
+    await new Promise(r => setTimeout(r, 400));
+
+    const { jsPDF } = window.jspdf;
+    let canvas;
+    try {
+        canvas = await html2canvas(tempDiv, { scale: 2, backgroundColor: null, logging: false });
+    } catch (canvasErr) {
+        document.body.removeChild(tempDiv);
+        throw new Error("Ошибка при создании изображения: " + canvasErr.message);
+    }
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const imgWidth = 190;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    pdf.save(`certificate_${code}.pdf`);
+
+    document.body.removeChild(tempDiv);
+}
+
+document.getElementById("generatePdfBtn").addEventListener("click", async () => {
+    const amount = document.getElementById("newCertAmount").value.trim();
+    if (!amount) { showToast("Введите сумму сертификата", "error"); return; }
+
+    const btn = document.getElementById("generatePdfBtn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Создаём PDF…`;
+
+    let newCode = generateRandomCode();
+    while (findCertificate(newCode)) newCode = generateRandomCode();
+
+    try {
+        await generatePdfCertificate(amount, newCode);
+        certificates.push({
+            code: newCode,
+            amount: amount,
+            used: false,
+            usedDate: null,
+            createdDate: new Date().toLocaleDateString('ru-RU')
+        });
+        saveCertificates();
+
+        const resultDiv = document.getElementById("pdfResult");
+        resultDiv.className = "pdf-result-msg pdf-result-ok";
+        resultDiv.innerHTML = `✅ Создан сертификат <strong>${newCode}</strong> на сумму <strong>${escapeHtml(amount)}</strong> — добавлен в базу`;
+        resultDiv.classList.remove("hidden");
+        showToast("PDF сохранён!", "success");
+        setTimeout(() => resultDiv.classList.add("hidden"), 6000);
+    } catch (error) {
+        console.error(error);
+        const resultDiv = document.getElementById("pdfResult");
+        resultDiv.className = "pdf-result-msg pdf-result-err";
+        resultDiv.innerHTML = `❌ Ошибка создания PDF. Сертификат не добавлен. Попробуйте другой фон или без фона.`;
+        resultDiv.classList.remove("hidden");
+        showToast("Ошибка создания PDF", "error");
+        setTimeout(() => resultDiv.classList.add("hidden"), 6000);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `🖨️ Создать PDF-сертификат`;
+    }
+});
+
+// ============================================================
+// ВКЛАДКИ
+// ============================================================
+document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    });
+});
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================================
+loadCertificates();
+loadBackground();
+updateStats();
+renderCertList();
+</script>
+</body>
+</html>
